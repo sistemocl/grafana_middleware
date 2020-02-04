@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-from influxdb import InfluxDBClient
+#pandas is imported for managing table like data
+#numpy is used by pandas and to make math operations with vectors
+#the influxdb DataFrameClient enables to make queries to the server and save
+#the response in a DataFrame
 import pandas as pd
 import numpy as np
 from influxdb import DataFrameClient
     
 
+#the query is stored in the variables "select" and "were" 
 select='select  "butler_id" as "bot", "1_int"  as "celda 1",  "2_int"  as "celda 2",  "3_int"  as "celda 3",  "4_int"  as "celda 4",  "5_int"  as "celda 5", "6_int"  as "celda 6", "7_int"  as "celda 7", "8_int"  as "celda 8", "9_int"  as "celda 9", "10_int" as "celda 10","11_int" as "celda 11","12_int" as "celda 12","13_int" as "celda 13","14_int" as "celda 14","15_int" as "celda 15","16_int" as "celda 16" '
-
 
 were='''from battery_details_info order by time desc limit 8000;'''
 
 
-def get_query_from_server(host='192.168.222.39', port=8086):
+def get_query_from_server(host='192.168.222.48', port=8086,query=''):
     """Instantiate a connection to the InfluxDB."""
     user = ''
     password = ''
@@ -21,12 +23,12 @@ def get_query_from_server(host='192.168.222.39', port=8086):
     
     client = DataFrameClient(host, port, user, password, dbname)
 
-    result = client.query(select+were)
+    result = client.query(query)
     
     return result
 
 
-query = get_query_from_server()
+query = get_query_from_server(query=select+were)
 
 batt = query['battery_details_info']
 
@@ -156,7 +158,25 @@ for key in scores:
 
 
 df.sort_values('max score')
+df = df.astype({'celdas malas': 'str','celdas altas':'str','celdas bajas':'str'})
+#AQUI HAY QUE TRANSFORMAR LOS SETS A STRING
 
+from sqlalchemy import create_engine
+from sqlalchemy.types import Integer, Text, String, DateTime
+engine = create_engine('postgresql://postgres:gato@localhost:5432/prueba')
+tpd = dict()
+for i in range(1,17):
+    tpd['score celda {}'.format(i)] = Integer
 
+tpd2 = {'score robot':Integer,'max score':Integer,'celdas bajas':Text,
+        'celdas malas':Text, 'celdas altas':Text}
+tpd2.update(tpd)
 
+df.to_sql("cells_with_problems",
+          engine,
+          if_exists='replace',
+          schema='public',
+          index=True,
+          chunksize=500,
+          dtype=tpd2)
 
