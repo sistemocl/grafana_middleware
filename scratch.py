@@ -14,7 +14,7 @@ max_volt_batt = 3600
 #the query is stored in the variables "select" and "were" 
 select='select  "butler_id" as "bot", "1_int"  as "celda 1",  "2_int"  as "celda 2",  "3_int"  as "celda 3",  "4_int"  as "celda 4",  "5_int"  as "celda 5", "6_int"  as "celda 6", "7_int"  as "celda 7", "8_int"  as "celda 8", "9_int"  as "celda 9", "10_int" as "celda 10","11_int" as "celda 11","12_int" as "celda 12","13_int" as "celda 13","14_int" as "celda 14","15_int" as "celda 15","16_int" as "celda 16" '
 
-were='''from battery_details_info where time > now() - 2d order by time desc limit 10000;'''
+were='''from battery_details_info where time > now() - 7d order by time desc limit 100000;'''
 
 #http://10.115.43.24:8083/
 #def get_query_from_server(host='10.113.95.45', port=8086,query=''):
@@ -131,7 +131,7 @@ select='select  "butler_id" as "bot", "1_int"  as "celda 1",  "2_int"  as "celda
 scores = dict()
 
 for i,row in df.iterrows():
-    were='''from battery_details_info where butler_id='{}' and time > now() - 3d order by time desc limit 2000;'''.format(row['butler_id'])
+    were='''from battery_details_info where butler_id='{}' and time > now() - 7d order by time desc limit 5000;'''.format(row['butler_id'])
     nq = get_query_from_server(query=select+were)
     celdas = nq['battery_details_info']
     values = celdas.to_numpy()
