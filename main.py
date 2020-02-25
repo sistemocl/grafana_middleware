@@ -2,11 +2,13 @@
 # coding: utf-8
 #pandas is imported for managing table like data
 #numpy is used by pandas and to make math operations with vectors
-#the influxdb DataFrameClient enables to make queries to the server and save
+#the influxdb DataFrameClient allows to query the server and save
 #the response in a DataFrame
 import pandas as pd
 import numpy as np
 import time
+from datetime import datetime
+
 from influxdb import DataFrameClient
 
 from sqlalchemy import create_engine
@@ -30,6 +32,7 @@ def get_query_from_server(host='10.115.43.24', port=8086,query=''):
     
     return result
 
+#this auxiliary function returns the duplicate elements in a list
 def duplicados(a):
     seen = {}
     dupes = []
@@ -44,11 +47,13 @@ def duplicados(a):
     return dupes
 
 def main():
+    #the min voltage and max voltage to filter the butler with problems
+    #if a cell goes below the min or above the max it means that it has problems
     min_volt_batt = 3200    
     max_volt_batt = 3600
     #the query is stored in the variables "select" and "were" 
     select='select  "butler_id" as "bot", "1_int"  as "celda 1",  "2_int"  as "celda 2",  "3_int"  as "celda 3",  "4_int"  as "celda 4",  "5_int"  as "celda 5", "6_int"  as "celda 6", "7_int"  as "celda 7", "8_int"  as "celda 8", "9_int"  as "celda 9", "10_int" as "celda 10","11_int" as "celda 11","12_int" as "celda 12","13_int" as "celda 13","14_int" as "celda 14","15_int" as "celda 15","16_int" as "celda 16" '
-
+    #the query ask for the battery_details_info in a range of 7 days
     were='''from battery_details_info where time > now() - 7d order by time desc limit 100000;'''
 
     query = get_query_from_server(query=select+were)
@@ -169,6 +174,7 @@ def main():
     df.sort_values('max score')
     df = df.astype({'celdas malas': 'str','celdas altas':'str','celdas bajas':'str'})
     #AQUI HAY QUE TRANSFORMAR LOS SETS A STRING
+    df['updated'] = datetime.now()
 
     engine = create_engine('postgresql://postgres:@10.113.95.45:5432/SistemoDB')
     tpd = dict()
@@ -176,7 +182,7 @@ def main():
         tpd['score celda {}'.format(i)] = Integer
 
     tpd2 = {'score robot':Integer,'max score':Integer,'celdas bajas':Text,
-            'celdas malas':Text, 'celdas altas':Text}
+            'celdas malas':Text, 'celdas altas':Text,'updated':DateTime}
     tpd2.update(tpd)
 
     df.to_sql("cells_with_problems",
