@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import time
 from datetime import datetime
-
+from log import get_logger
 from influxdb import DataFrameClient
 
 from sqlalchemy import create_engine
@@ -49,15 +49,16 @@ def duplicados(a):
 def main():
     #the min voltage and max voltage to filter the butler with problems
     #if a cell goes below the min or above the max it means that it has problems
+    log = get_logger('graf-mid')
     min_volt_batt = 3200    
     max_volt_batt = 3600
     #the query is stored in the variables "select" and "were" 
     select='select  "butler_id" as "bot", "1_int"  as "celda 1",  "2_int"  as "celda 2",  "3_int"  as "celda 3",  "4_int"  as "celda 4",  "5_int"  as "celda 5", "6_int"  as "celda 6", "7_int"  as "celda 7", "8_int"  as "celda 8", "9_int"  as "celda 9", "10_int" as "celda 10","11_int" as "celda 11","12_int" as "celda 12","13_int" as "celda 13","14_int" as "celda 14","15_int" as "celda 15","16_int" as "celda 16" '
     #the query ask for the battery_details_info in a range of 7 days
     were='''from battery_details_info where time > now() - 7d order by time desc limit 100000;'''
-
+    log.info('Getting info from InfluxDB...')
     query = get_query_from_server(query=select+were)
-
+    log.info('Succesful query from InfluxDB')
     batt = query['battery_details_info']
 
     conditions = []
@@ -112,6 +113,7 @@ def main():
     df['celdas malas'] = [set() for _ in range(len(df))]
 
 
+    log.info('Calculating scores for bots...')
     for but in butlers_dup:
         tmp = bots_wp[bots_wp['bot'] == but]
         cb = set()
@@ -176,7 +178,9 @@ def main():
     #AQUI HAY QUE TRANSFORMAR LOS SETS A STRING
     df['updated'] = datetime.now()
 
+    log.info('Creating engine to PostgreSQL')
     engine = create_engine('postgresql://postgres:@10.113.95.45:5432/SistemoDB')
+    log.info('Engine ready...')
     tpd = dict()
     for i in range(1,17):
         tpd['score celda {}'.format(i)] = Integer
@@ -185,6 +189,8 @@ def main():
             'celdas malas':Text, 'celdas altas':Text,'updated':DateTime}
     tpd2.update(tpd)
 
+    log.info('Starting to write table into postgres DB')
+
     df.to_sql("cells_with_problems",
               engine,
               if_exists='replace',
@@ -192,6 +198,7 @@ def main():
               index=True,
               chunksize=500,
               dtype=tpd2)
+    log.info('Table ready!!')
 
 while(True):
     main()
